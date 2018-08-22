@@ -1,0 +1,12 @@
+{
+    "name": "UnityExtensions.MeshIntersection.Editor",
+    "references": [
+        "UnityExtensions.MeshIntersection"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false
+}
