@@ -56,7 +56,7 @@ namespace UnityExtensions
             {
                 var normal = MouseRay.direction;
                 var position = MouseRay.origin + MouseRay.direction * 2f;
-                var size = HandleUtility.GetHandleSize(position) / 10f;
+                var size = HandleUtility.GetHandleSize(position) / 4f;
                 Handles.color = Color.black;
 
                 if (MouseOverIntersection.found)
@@ -88,7 +88,7 @@ namespace UnityExtensions
                     var n = MouseOverIntersection.normal;
                     var p1 = p0 + n * size * 10;
                     Handles.color = Color.magenta;
-                    Handles.DrawSolidDisc(p0, n, size / 2);
+                    Handles.DrawSolidDisc(p0, n, size);
                     Handles.DrawLine(p0, p1);
 
                     go = PrefabUtility.FindPrefabRoot(go);
@@ -127,6 +127,7 @@ namespace UnityExtensions
             var size = style.CalcSize(content);
             var origin = center - size / 2;
             var rect = new Rect(origin, size);
+            rect.width += 4;
             GUI.Label(rect, label, style);
         }
 
