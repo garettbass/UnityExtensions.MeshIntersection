@@ -83,8 +83,8 @@ namespace UnityExtensions
             distance = Mathf.Infinity;
             var meshScale = meshMatrix.lossyScale;
             var normalScale =
-                (meshScale.x * meshScale.y + meshScale.z) > 0
-                ? +1f : -1f;
+                (meshScale.x * meshScale.y * meshScale.z) < 0
+                ? -1f : +1f;
             var indices = mesh.triangles;
             var normals = mesh.normals;
             var vertices = mesh.vertices;

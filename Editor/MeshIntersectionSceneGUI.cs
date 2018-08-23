@@ -33,7 +33,6 @@ namespace UnityExtensions
 
         public static void DrawMeshIntersectionGUI()
         {
-            SceneView.RepaintAll();
             var @event = Event.current;
             var mousePosition = @event.mousePosition;
 
@@ -49,6 +48,7 @@ namespace UnityExtensions
                 MouseRay = mouseRay;
                 MouseOverIntersection.Raycast(mouseRay, meshRenderers);
 
+                SceneView.RepaintAll();
                 return;
             }
 
