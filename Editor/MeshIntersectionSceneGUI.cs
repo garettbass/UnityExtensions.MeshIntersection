@@ -8,17 +8,79 @@ using Object = UnityEngine.Object;
 namespace UnityExtensions
 {
 
-    public static class MeshIntersectionTestGUI
+    public static class MeshIntersectionSceneGUI
     {
+
+        private static MeshIntersectionRectSelection m_RectSelection;
 
         [InitializeOnLoadMethod]
         private static void InitializeOnLoad()
         {
+            m_RectSelection = new MeshIntersectionRectSelection();
             SceneView.onSceneGUIDelegate += OnSceneGUI;
         }
 
+        private const string EnableMeshPickerKey =
+            "UnityExtensions.MeshIntersection.EnableMeshPicker";
+        private static bool? EnableMeshPickerCached = null;
+        private static bool EnableMeshPicker
+        {
+            get
+            {
+                if (EnableMeshPickerCached == null)
+                    EnableMeshPickerCached =
+                        EditorPrefs.GetBool(
+                            EnableMeshPickerKey,
+                            false);
+
+                return EnableMeshPickerCached.Value;
+            }
+            set
+            {
+                EnableMeshPickerCached = value;
+                EditorPrefs.SetBool(EnableMeshPickerKey, value);
+            }
+        }
+
+        private static GUIContent MeshPickerLabel = null;
+
         private static void OnSceneGUI(SceneView sceneView)
         {
+            if (MeshPickerLabel == null)
+                MeshPickerLabel = new GUIContent(
+                    text: " Pixel Select",
+                    tooltip:
+                        " Enable pixel select mode to select \n"+
+                        " visible geometry only. \n\n"+
+                        " NOTE: You will not be able to click on \n"+
+                        " a nav mesh when pixel select mode is \n"+
+                        " enabled. "
+                );
+            Handles.BeginGUI();
+            {
+                var rect = sceneView.camera.pixelRect;
+                var pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
+                rect.width /= pixelsPerPoint;
+                rect.height /= pixelsPerPoint;
+                rect.xMax -= 6;
+                rect.xMin = rect.xMax - 90;
+                rect.y += 118;
+                rect.height = EditorGUIUtility.singleLineHeight;
+                if (Event.current.type == EventType.Repaint)
+                {
+                    var rect2 = rect;
+                    rect2.yMin -= 1;
+                    rect2.yMax += 1;
+                    var style = EditorStyles.helpBox;
+                    style.Draw(rect2, false, false, false, false);
+                    style.Draw(rect2, false, false, false, false);
+                }
+                rect.x += 2;
+                EnableMeshPicker =
+                    EditorGUI.ToggleLeft(rect, MeshPickerLabel, EnableMeshPicker);
+            }
+            Handles.EndGUI();
+
             switch (sceneView.cameraMode.drawMode) {
                 case DrawCameraMode.Wireframe:
                 case DrawCameraMode.TexturedWire:
@@ -26,10 +88,30 @@ namespace UnityExtensions
                     break;
                 default: break;
             }
+
+            if (EnableMeshPicker)
+                DoMeshPickerGUI();
         }
 
         private static Ray MouseRay;
         private static MeshIntersection MouseOverIntersection;
+
+        private static bool GUIPointToWorldRay(Vector2 position, out Ray ray)
+        {
+            try {
+                ray = HandleUtility.GUIPointToWorldRay(position);
+                return true;
+            } catch {
+                // Screen position out of view frustum
+                ray = default(Ray);
+                return false;
+            }
+        }
+
+        public static void DoMeshPickerGUI()
+        {
+            m_RectSelection.OnGUI();
+        }
 
         public static void DrawMeshIntersectionGUI()
         {
@@ -38,16 +120,17 @@ namespace UnityExtensions
 
             if (@event.type == EventType.MouseMove)
             {
-                var mouseRay = HandleUtility.GUIPointToWorldRay(mousePosition);
+                var mouseRay = default(Ray);
+                if (GUIPointToWorldRay(mousePosition, out mouseRay))
+                {
+                    var meshRenderers =
+                        Object
+                        .FindObjectsOfType<MeshRenderer>()
+                        .Where(IsVisibleMeshRenderer);
 
-                var meshRenderers =
-                    Object
-                    .FindObjectsOfType<MeshRenderer>()
-                    .Where(IsVisibleMeshRenderer);
-
-                MouseRay = mouseRay;
-                MouseOverIntersection.Raycast(mouseRay, meshRenderers);
-
+                    MouseRay = mouseRay;
+                    MouseOverIntersection.Raycast(mouseRay, meshRenderers);
+                }
                 SceneView.RepaintAll();
                 return;
             }
@@ -56,7 +139,7 @@ namespace UnityExtensions
             {
                 var normal = MouseRay.direction;
                 var position = MouseRay.origin + MouseRay.direction * 2f;
-                var size = HandleUtility.GetHandleSize(position) / 4f;
+                var size = HandleUtility.GetHandleSize(position) / 20f;
                 Handles.color = Color.black;
 
                 if (MouseOverIntersection.found)
@@ -72,28 +155,33 @@ namespace UnityExtensions
                     var v1 = MouseOverIntersection.vertex1;
                     var v2 = MouseOverIntersection.vertex2;
 
+                    var vsize = size / 4;
+
                     Handles.color = Color.red;
-                    Handles.DrawSolidDisc(v0, normal, size / 2);
+                    Handles.DrawSolidDisc(v0, normal, vsize);
 
                     Handles.color = Color.green;
-                    Handles.DrawSolidDisc(v1, normal, size / 2);
+                    Handles.DrawSolidDisc(v1, normal, vsize);
 
                     Handles.color = Color.Lerp(Color.blue, Color.cyan, 0.5f);
-                    Handles.DrawSolidDisc(v2, normal, size / 2);
+                    Handles.DrawSolidDisc(v2, normal, vsize);
 
-                    Handles.color = Color.Lerp(Color.yellow, Color.clear, 0.25f);
+                    Handles.color = Color.Lerp(Color.yellow, Color.clear, 0.5f);
                     Handles.DrawAAConvexPolygon(v0, v1, v2);
 
                     var p0 = MouseOverIntersection.position;
                     var n = MouseOverIntersection.normal;
                     var p1 = p0 + n * size * 10;
+                    var psize = size / 2;
                     Handles.color = Color.magenta;
-                    Handles.DrawSolidDisc(p0, n, size);
+                    Handles.DrawSolidDisc(p0, n, psize);
                     Handles.DrawLine(p0, p1);
 
                     go = PrefabUtility.FindPrefabRoot(go);
                     Handles.BeginGUI();
-                    GUILabel(p1, go.name);
+                    var labelPosition = mousePosition;
+                    labelPosition.y -= 16;
+                    GUILabel(labelPosition, go.name);
                     Handles.EndGUI();
                 }
             }
